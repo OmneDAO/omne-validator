@@ -1,0 +1,82 @@
+# Example Omne Nexus configuration file
+# Copy this to ~/.omne-nexus/config.toml and customize
+
+# Data directory for validator storage
+data_dir = "~/.omne-nexus"
+
+[network]
+# Network to connect to (mainnet, testnet, devnet)
+name = "testnet"
+id = 2
+genesis_hash = "0x1111111111111111111111111111111111111111111111111111111111111111"
+
+[network.chain_spec]
+commerce_block_time = 3
+security_block_time = 540
+min_validator_stake = 10
+max_validators = 100
+
+[p2p]
+# P2P listening port
+port = 30303
+# Maximum number of peers to maintain
+max_peers = 50
+# Bootstrap peer addresses
+bootstrap_peers = [
+    "/dns4/testnet-boot1.omne.network/tcp/30303",
+    "/dns4/testnet-boot2.omne.network/tcp/30303"
+]
+# Connection timeout in seconds
+connection_timeout = 10
+# Enable mDNS peer discovery
+enable_mdns = false
+# Enable Kademlia DHT
+enable_kad = true
+
+[rpc]
+# RPC server port
+port = 9944
+# RPC bind address
+bind_address = "127.0.0.1"
+# Enable HTTP RPC
+enable_http = true
+# Enable WebSocket RPC
+enable_ws = true
+# Maximum concurrent connections
+max_connections = 100
+
+[validator]
+# Enable validator mode (participate in consensus)
+is_validator = false
+# Validator stake amount in OGT
+validator_stake = 100
+# Validator key file path (optional)
+validator_key_path = "~/.omne-nexus/keys/validator.key"
+# Network identity key path (optional)
+network_key_path = "~/.omne-nexus/keys/network.key"
+# Enable automatic re-staking of rewards
+auto_restake = true
+
+[validator.slashing_protection]
+# Enable slashing protection
+enabled = true
+# Minimum attestation source epoch difference
+min_source_epoch_diff = 1
+# Minimum attestation target epoch difference  
+min_target_epoch_diff = 1
+
+[oon]
+# Enable OON computational services
+enable_oon = false
+# Maximum concurrent computational jobs
+max_concurrent_jobs = 4
+# Computational resource allocation (percentage)
+resource_allocation = 0.5
+# Supported computation types
+supported_services = [
+    "ai-inference",
+    "scientific-computation", 
+    "data-processing"
+]
+# Revenue sharing percentage with validators
+revenue_share_percentage = 0.8
