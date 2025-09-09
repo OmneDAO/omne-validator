@@ -262,7 +262,7 @@ impl RpcServer {
     fn rpc_latest_block(&self, _params: &[Value]) -> Result<Value> {
         Ok(json!({
             "height": 0,
-            "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "hash": "bh_000000000000000000000000000000000000000000000000000000000000000000",
             "timestamp": chrono::Utc::now().timestamp()
         }))
     }
@@ -278,7 +278,7 @@ impl RpcServer {
 
         Ok(json!({
             "height": _height,
-            "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "hash": "bh_000000000000000000000000000000000000000000000000000000000000000000",
             "timestamp": chrono::Utc::now().timestamp()
         }))
     }
