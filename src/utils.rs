@@ -51,16 +51,27 @@ pub fn format_bytes(bytes: u64) -> String {
 
 /// Validate Omne address format
 pub fn validate_omne_address(address: &str) -> bool {
-    // Basic validation - should be hex string with 0x prefix and 40 characters
-    if !address.starts_with("0x") {
-        return false;
+    // Validate Omne native address format (omne1...)
+    if address.starts_with("omne1") {
+        // Should be 43 characters total (omne1 + 38 characters)
+        if address.len() != 43 {
+            return false;
+        }
+        
+        // Validate base32-like encoding (excluding 0, O, I, L)
+        const OMNE_ALPHABET: &str = "123456789abcdefghjkmnpqrstuvwxyz";
+        return address[5..].chars().all(|c| OMNE_ALPHABET.contains(c));
     }
     
-    if address.len() != 42 {
-        return false;
+    // Legacy hex address validation for backward compatibility
+    if address.starts_with("0x") {
+        if address.len() != 42 {
+            return false;
+        }
+        return address[2..].chars().all(|c| c.is_ascii_hexdigit());
     }
     
-    address[2..].chars().all(|c| c.is_ascii_hexdigit())
+    false
 }
 
 /// Generate a secure random string
