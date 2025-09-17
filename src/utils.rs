@@ -1,6 +1,6 @@
 //! Utility functions and helpers
 
-use anyhow::Result;
+
 use std::path::PathBuf;
 
 /// Expand tilde (~) in file paths to home directory

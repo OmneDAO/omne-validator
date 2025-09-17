@@ -12,7 +12,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
-use tracing::{info, debug, warn, error};
+use tracing::{info, debug, warn};
 
 /// JSON-RPC server for validator API
 pub struct RpcServer {
@@ -87,13 +87,13 @@ impl RpcServer {
     }
 
     /// Start the RPC server
-    pub async fn start(&self, mut shutdown: Result<(), broadcast::error::RecvError>) -> Result<()> {
+    pub async fn start(&self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         info!("🚀 Starting RPC server on {}", self.bind_address);
 
         if !self.config.rpc.enable_http {
             info!("📵 HTTP RPC disabled, waiting for shutdown signal");
-            let _ = shutdown.await;
-            return Ok!(());
+            let _ = shutdown.recv().await;
+            return Ok(());
         }
 
         let listener = TcpListener::bind(self.bind_address).await?;
@@ -114,7 +114,7 @@ impl RpcServer {
                     }
                 }
                 
-                _ = &mut shutdown => {
+                _ = shutdown.recv() => {
                     info!("🛑 Shutting down RPC server");
                     break;
                 }

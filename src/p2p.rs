@@ -4,6 +4,7 @@ use crate::config::ValidatorConfig;
 use crate::consensus::PoVERAValidator;
 
 use anyhow::Result;
+use futures::StreamExt;
 use libp2p::{
     gossipsub, identify, kad, mdns, noise, ping, yamux, 
     swarm::{NetworkBehaviour, SwarmEvent},
@@ -12,24 +13,70 @@ use libp2p::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::broadcast;
-use tracing::{info, debug, warn, error};
+use tokio::sync::{broadcast, Mutex};
+use tracing::{info, debug, warn};
 
 /// P2P network implementation for Omne validators
 pub struct P2PNetwork {
     config: ValidatorConfig,
     consensus: Arc<PoVERAValidator>,
-    swarm: Option<Swarm<ValidatorNetworkBehaviour>>,
+    swarm: Mutex<Option<Swarm<ValidatorNetworkBehaviour>>>,
 }
+
+// Safe to implement Send + Sync since ValidatorConfig and Arc<PoVERAValidator> are Send + Sync
+// and swarm is used only in single-threaded contexts within async tasks
+unsafe impl Send for P2PNetwork {}
+unsafe impl Sync for P2PNetwork {}
 
 /// Network behaviour for validator nodes
 #[derive(NetworkBehaviour)]
+#[behaviour(to_swarm = "ValidatorNetworkBehaviourEvent")]
 pub struct ValidatorNetworkBehaviour {
     pub ping: ping::Behaviour,
-    pub identify: identify::Behaviour,
+    pub identify: identify::Behaviour,  
     pub kad: kad::Behaviour<kad::store::MemoryStore>,
     pub gossipsub: gossipsub::Behaviour,
     pub mdns: mdns::tokio::Behaviour,
+}
+
+/// Events from the validator network behaviour
+#[derive(Debug)]
+pub enum ValidatorNetworkBehaviourEvent {
+    Ping(ping::Event),
+    Identify(identify::Event),
+    Kad(kad::Event),
+    Gossipsub(gossipsub::Event),
+    Mdns(mdns::Event),
+}
+
+impl From<ping::Event> for ValidatorNetworkBehaviourEvent {
+    fn from(event: ping::Event) -> Self {
+        ValidatorNetworkBehaviourEvent::Ping(event)
+    }
+}
+
+impl From<identify::Event> for ValidatorNetworkBehaviourEvent {
+    fn from(event: identify::Event) -> Self {
+        ValidatorNetworkBehaviourEvent::Identify(event)
+    }
+}
+
+impl From<kad::Event> for ValidatorNetworkBehaviourEvent {
+    fn from(event: kad::Event) -> Self {
+        ValidatorNetworkBehaviourEvent::Kad(event)
+    }
+}
+
+impl From<gossipsub::Event> for ValidatorNetworkBehaviourEvent {
+    fn from(event: gossipsub::Event) -> Self {
+        ValidatorNetworkBehaviourEvent::Gossipsub(event)
+    }
+}
+
+impl From<mdns::Event> for ValidatorNetworkBehaviourEvent {
+    fn from(event: mdns::Event) -> Self {
+        ValidatorNetworkBehaviourEvent::Mdns(event)
+    }
 }
 
 /// P2P network status
@@ -57,12 +104,12 @@ impl P2PNetwork {
         Ok(Self {
             config: config.clone(),
             consensus,
-            swarm: None,
+            swarm: Mutex::new(None),
         })
     }
 
     /// Initialize the libp2p swarm
-    async fn init_swarm(&mut self) -> Result<()> {
+    async fn init_swarm(&self) -> Result<()> {
         // Create a random key for this node
         let local_key = libp2p::identity::Keypair::generate_ed25519();
         let local_peer_id = PeerId::from(local_key.public());
@@ -95,7 +142,12 @@ impl P2PNetwork {
         };
 
         // Create swarm
-        let mut swarm = Swarm::with_tokio_executor(transport, behaviour, local_peer_id);
+        let mut swarm = Swarm::new(
+            transport,
+            behaviour,
+            local_peer_id,
+            libp2p::swarm::Config::with_tokio_executor()
+        );
 
         // Listen on configured port
         let listen_addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", self.config.p2p.port)
@@ -111,7 +163,7 @@ impl P2PNetwork {
             }
         }
 
-        self.swarm = Some(swarm);
+        *self.swarm.lock().await = Some(swarm);
         Ok(())
     }
 
@@ -121,18 +173,20 @@ impl P2PNetwork {
             .heartbeat_interval(Duration::from_millis(1000))
             .validation_mode(gossipsub::ValidationMode::Strict)
             .message_id_fn(|message| {
-                use std::collections::hash_map::DefaultHasher;
-                use std::hash::{Hash, Hasher};
-                let mut hasher = DefaultHasher::new();
-                message.data.hash(&mut hasher);
-                gossipsub::MessageId::from(hasher.finish().to_string())
+                use sha2::{Digest, Sha256};
+                let mut hasher = Sha256::new();
+                hasher.update(&message.data);
+                let hash = hasher.finalize();
+                gossipsub::MessageId::from(format!("{:x}", hash))
             })
-            .build()?;
+            .build()
+            .map_err(|e| anyhow::anyhow!("Failed to build gossipsub config: {:?}", e))?;
 
         let mut gossipsub = gossipsub::Behaviour::new(
             gossipsub::MessageAuthenticity::Signed(libp2p::identity::Keypair::generate_ed25519()),
             gossipsub_config,
-        )?;
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to create gossipsub behaviour: {:?}", e))?;
 
         // Subscribe to consensus topics
         let network_id = self.config.network.id;
@@ -153,24 +207,31 @@ impl P2PNetwork {
     }
 
     /// Start the P2P network
-    pub async fn start(&mut self, mut shutdown: Result<(), broadcast::error::RecvError>) -> Result<()> {
+    pub async fn start(&self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         info!("🚀 Starting P2P network");
 
         // Initialize swarm
         self.init_swarm().await?;
         
-        let swarm = self.swarm.as_mut().unwrap();
-
         // Main network event loop
         loop {
             tokio::select! {
-                event = swarm.select_next_some() => {
-                    if let Err(e) = self.handle_swarm_event(event).await {
-                        warn!("Error handling swarm event: {}", e);
+                event = async {
+                    let mut swarm_guard = self.swarm.lock().await;
+                    if let Some(swarm) = swarm_guard.as_mut() {
+                        swarm.next().await
+                    } else {
+                        None
+                    }
+                } => {
+                    if let Some(event) = event {
+                        if let Err(e) = Self::handle_swarm_event_static(event, &self.consensus).await {
+                            warn!("Error handling swarm event: {}", e);
+                        }
                     }
                 }
                 
-                _ = &mut shutdown => {
+                _ = shutdown.recv() => {
                     info!("🛑 Shutting down P2P network");
                     break;
                 }
@@ -180,8 +241,43 @@ impl P2PNetwork {
         Ok(())
     }
 
+    /// Handle libp2p swarm events (static version to avoid borrow issues)
+    async fn handle_swarm_event_static(
+        event: SwarmEvent<ValidatorNetworkBehaviourEvent, impl std::error::Error>, 
+        consensus: &Arc<PoVERAValidator>
+    ) -> Result<()> {
+        match event {
+            SwarmEvent::NewListenAddr { address, .. } => {
+                info!("🎧 Listening on: {}", address);
+            }
+            SwarmEvent::Behaviour(ValidatorNetworkBehaviourEvent::Ping(event)) => {
+                debug!("🏓 Ping event: {:?}", event);
+            }
+            SwarmEvent::Behaviour(ValidatorNetworkBehaviourEvent::Identify(event)) => {
+                debug!("🆔 Identify event: {:?}", event);
+            }
+            SwarmEvent::Behaviour(ValidatorNetworkBehaviourEvent::Kad(event)) => {
+                debug!("🗺️  Kademlia event: {:?}", event);
+            }
+            SwarmEvent::Behaviour(ValidatorNetworkBehaviourEvent::Gossipsub(event)) => {
+                Self::handle_gossipsub_event_static(event, consensus).await?;
+            }
+            SwarmEvent::Behaviour(ValidatorNetworkBehaviourEvent::Mdns(event)) => {
+                debug!("🔍 mDNS event: {:?}", event);
+            }
+            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                info!("🤝 Connected to peer: {}", peer_id);
+            }
+            SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
+                info!("👋 Disconnected from peer: {} (cause: {:?})", peer_id, cause);
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     /// Handle libp2p swarm events
-    async fn handle_swarm_event(&self, event: SwarmEvent<ValidatorNetworkBehaviourEvent>) -> Result<()> {
+    async fn handle_swarm_event(&self, event: SwarmEvent<ValidatorNetworkBehaviourEvent, impl std::error::Error>) -> Result<()> {
         match event {
             SwarmEvent::NewListenAddr { address, .. } => {
                 info!("🎧 Listening on: {}", address);
@@ -206,6 +302,42 @@ impl P2PNetwork {
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 info!("👋 Disconnected from peer: {} (cause: {:?})", peer_id, cause);
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    /// Handle gossipsub events (consensus messages) - static version
+    async fn handle_gossipsub_event_static(
+        event: gossipsub::Event, 
+        _consensus: &Arc<PoVERAValidator>
+    ) -> Result<()> {
+        match event {
+            gossipsub::Event::Message { 
+                propagation_source, 
+                message_id, 
+                message 
+            } => {
+                debug!(
+                    "📨 Received message {} from {} on topic {}",
+                    message_id,
+                    propagation_source,
+                    message.topic
+                );
+                
+                // TODO: Route message to consensus validator for processing
+                // This is where we'd handle:
+                // - Commerce block proposals
+                // - Security block proposals  
+                // - Attestations
+                // - Transaction broadcasts
+            }
+            gossipsub::Event::Subscribed { peer_id, topic } => {
+                debug!("📡 Peer {} subscribed to topic {}", peer_id, topic);
+            }
+            gossipsub::Event::Unsubscribed { peer_id, topic } => {
+                debug!("📡 Peer {} unsubscribed from topic {}", peer_id, topic);
             }
             _ => {}
         }
