@@ -23,10 +23,9 @@ pub struct P2PNetwork {
     swarm: Mutex<Option<Swarm<ValidatorNetworkBehaviour>>>,
 }
 
-// Safe to implement Send + Sync since ValidatorConfig and Arc<PoVERAValidator> are Send + Sync
-// and swarm is used only in single-threaded contexts within async tasks
-unsafe impl Send for P2PNetwork {}
-unsafe impl Sync for P2PNetwork {}
+// NOTE: Removed unsafe Send + Sync implementations for security.
+// Rust will automatically implement Send + Sync if all fields are Send + Sync.
+// This prevents potential data races and undefined behavior.
 
 /// Network behaviour for validator nodes
 #[derive(NetworkBehaviour)]

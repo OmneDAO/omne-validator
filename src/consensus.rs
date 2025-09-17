@@ -16,9 +16,9 @@ pub struct PoVERAValidator {
     state: ConsensusState,
 }
 
-// Safe to implement Send + Sync since all fields are Send + Sync
-unsafe impl Send for PoVERAValidator {}
-unsafe impl Sync for PoVERAValidator {}
+// NOTE: Removed unsafe Send + Sync implementations for security.
+// Rust will automatically implement Send + Sync if all fields are Send + Sync.
+// This prevents potential data races and undefined behavior.
 
 /// Current consensus state
 #[derive(Debug, Clone)]
