@@ -6,7 +6,7 @@
 use crate::config::ValidatorConfig;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, Instant};
+use std::time::{Duration};
 use tokio::sync::broadcast;
 use tracing::{info, debug, warn};
 
@@ -15,6 +15,10 @@ pub struct PoVERAValidator {
     config: ValidatorConfig,
     state: ConsensusState,
 }
+
+// Safe to implement Send + Sync since all fields are Send + Sync
+unsafe impl Send for PoVERAValidator {}
+unsafe impl Sync for PoVERAValidator {}
 
 /// Current consensus state
 #[derive(Debug, Clone)]
@@ -74,13 +78,13 @@ impl PoVERAValidator {
     }
 
     /// Start the consensus validator
-    pub async fn start(&self, mut shutdown: Result<(), broadcast::error::RecvError>) -> Result<()> {
+    pub async fn start(&self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         info!("🚀 Starting PoVERA consensus validator");
 
         if !self.config.validator.is_validator {
             info!("👁️  Running in observer mode - not participating in consensus");
             // Just wait for shutdown signal
-            let _ = shutdown.await;
+            let _ = shutdown.recv().await;
             return Ok(());
         }
 
@@ -110,7 +114,7 @@ impl PoVERAValidator {
                     }
                 }
                 
-                _ = &mut shutdown => {
+                _ = shutdown.recv() => {
                     info!("🛑 Shutting down consensus validator");
                     break;
                 }

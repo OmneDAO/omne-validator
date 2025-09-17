@@ -42,12 +42,16 @@ libp2p = { version = "0.52", features = [
     "kad",
     "identify",
     "ping",
-    "autonat"
+    "autonat",
+    "tokio",
+    "macros"
 ]}
+libp2p-swarm = "0.43"
 
 # Storage and serialization
 sled = "0.34"
 bincode = "1.3"
+dirs = "5.0"
 toml = "0.8"
 
 # Async utilities
@@ -66,10 +70,6 @@ group = "0.13"
 tempfile = "3.8"
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.4"
-
-[[bench]]
-name = "consensus_benchmarks"
-harness = false
 
 [profile.release]
 lto = true

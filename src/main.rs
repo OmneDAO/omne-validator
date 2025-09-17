@@ -5,7 +5,7 @@
 
 use clap::{Parser, Subcommand};
 use anyhow::{Result, Context};
-use tracing::{info, error};
+use tracing::{info};
 use std::path::PathBuf;
 
 mod validator;
@@ -219,14 +219,14 @@ async fn start_validator(
     
     // Override config with CLI parameters
     config.data_dir = data_dir;
-    config.is_validator = is_validator;
-    config.validator_stake = stake;
-    config.p2p_port = p2p_port;
-    config.rpc_port = rpc_port;
-    config.enable_oon = enable_oon;
+    config.validator.is_validator = is_validator;
+    config.validator.validator_stake = stake;
+    config.p2p.port = p2p_port;
+    config.rpc.port = rpc_port;
+    config.oon.enable_oon = enable_oon;
     
     if let Some(peers) = bootstrap_peers {
-        config.bootstrap_peers = peers.split(',').map(|s| s.trim().to_string()).collect();
+        config.p2p.bootstrap_peers = peers.split(',').map(|s| s.trim().to_string()).collect();
     }
     
     // Validate minimum stake for validators

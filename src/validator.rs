@@ -95,9 +95,9 @@ impl ValidatorNode {
         // Start consensus validator
         let consensus_handle = {
             let consensus = self.consensus.clone();
-            let mut shutdown_rx = self.shutdown_tx.subscribe();
+            let shutdown_rx = self.shutdown_tx.subscribe();
             tokio::spawn(async move {
-                if let Err(e) = consensus.start(shutdown_rx.recv().await).await {
+                if let Err(e) = consensus.start(shutdown_rx).await {
                     error!("Consensus validator error: {}", e);
                 }
             })
@@ -106,9 +106,9 @@ impl ValidatorNode {
         // Start P2P network
         let p2p_handle = {
             let p2p_network = self.p2p_network.clone();
-            let mut shutdown_rx = self.shutdown_tx.subscribe();
+            let shutdown_rx = self.shutdown_tx.subscribe();
             tokio::spawn(async move {
-                if let Err(e) = p2p_network.start(shutdown_rx.recv().await).await {
+                if let Err(e) = p2p_network.start(shutdown_rx).await {
                     error!("P2P network error: {}", e);
                 }
             })
@@ -117,9 +117,9 @@ impl ValidatorNode {
         // Start RPC server
         let rpc_handle = {
             let rpc_server = self.rpc_server.clone();
-            let mut shutdown_rx = self.shutdown_tx.subscribe();
+            let shutdown_rx = self.shutdown_tx.subscribe();
             tokio::spawn(async move {
-                if let Err(e) = rpc_server.start(shutdown_rx.recv().await).await {
+                if let Err(e) = rpc_server.start(shutdown_rx).await {
                     error!("RPC server error: {}", e);
                 }
             })
