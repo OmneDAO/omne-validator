@@ -26,6 +26,15 @@ pub struct ValidatorConfig {
     
     /// OON computational services settings
     pub oon: OonConfig,
+    
+    /// OMP media protocol settings
+    pub omp: OMPConfig,
+    
+    /// Enhanced ORC-20 relayer settings
+    pub orc20_relayer: ORC20RelayerConfig,
+    
+    /// OEC-4337 paymaster settings
+    pub paymaster: PaymasterConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,6 +130,77 @@ pub struct OonConfig {
     pub supported_services: Vec<String>,
     /// Revenue sharing percentage with validators
     pub revenue_share_percentage: f64,
+}
+
+/// OMP (Omne Media Protocol) service configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OMPConfig {
+    /// Enable OMP media storage services
+    pub enable_omp: bool,
+    /// Storage tier preferences (1=on-chain, 2=IPFS pinned, 3=IPFS best-effort)
+    pub preferred_tiers: Vec<u8>,
+    /// Maximum storage allocation per validator (GB)
+    pub max_storage_gb: u64,
+    /// Pricing per GB per month (in quar)
+    pub pricing_per_gb_quar: u128,
+    /// IPFS node configuration
+    pub ipfs_config: IPFSConfig,
+}
+
+/// Enhanced ORC-20 relayer service configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ORC20RelayerConfig {
+    /// Enable Enhanced ORC-20 relayer services
+    pub enable_relayer: bool,
+    /// Maximum concurrent meta-transactions
+    pub max_concurrent_tx: usize,
+    /// Gas price multiplier for relaying (1.1 = 10% markup)
+    pub gas_price_multiplier: f64,
+    /// Minimum balance threshold for relaying (in OMC)
+    pub min_balance_threshold: u128,
+    /// Supported token contracts for relaying
+    pub supported_tokens: Vec<String>,
+}
+
+/// OEC-4337 paymaster service configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaymasterConfig {
+    /// Enable OEC-4337 paymaster services
+    pub enable_paymaster: bool,
+    /// Sponsorship budget per day (in OMC)
+    pub daily_sponsorship_budget: u128,
+    /// Sponsorship policies to apply
+    pub sponsorship_policies: Vec<String>,
+    /// Maximum gas per sponsored transaction
+    pub max_gas_per_tx: u64,
+    /// Rate limiting: max sponsored transactions per user per hour
+    pub max_tx_per_user_per_hour: u32,
+}
+
+/// IPFS configuration for OMP
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IPFSConfig {
+    /// IPFS API endpoint
+    pub api_endpoint: String,
+    /// IPFS gateway endpoint
+    pub gateway_endpoint: String,
+    /// Enable local IPFS node
+    pub enable_local_node: bool,
+    /// Pinning service configurations
+    pub pinning_services: Vec<PinningServiceConfig>,
+}
+
+/// Pinning service configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PinningServiceConfig {
+    /// Service name (e.g., "pinata", "infura", "fleek")
+    pub name: String,
+    /// API endpoint
+    pub endpoint: String,
+    /// API key
+    pub api_key: String,
+    /// Priority (higher number = higher priority)
+    pub priority: u8,
 }
 
 mod duration_serde {
@@ -237,6 +317,35 @@ impl ValidatorConfig {
                 ],
                 revenue_share_percentage: 0.8, // 80% to validators, 20% to network
             },
+            omp: OMPConfig {
+                enable_omp: false,
+                preferred_tiers: vec![2, 3], // IPFS pinned and best-effort by default
+                max_storage_gb: 100,
+                pricing_per_gb_quar: 50_000_000_000_000_000, // 0.05 OMC per GB per month
+                ipfs_config: IPFSConfig {
+                    api_endpoint: "http://127.0.0.1:5001".to_string(),
+                    gateway_endpoint: "http://127.0.0.1:8080".to_string(),
+                    enable_local_node: true,
+                    pinning_services: vec![],
+                },
+            },
+            orc20_relayer: ORC20RelayerConfig {
+                enable_relayer: false,
+                max_concurrent_tx: 100,
+                gas_price_multiplier: 1.1, // 10% markup
+                min_balance_threshold: 1_000_000_000_000_000_000, // 1.0 OMC
+                supported_tokens: vec![], // Empty by default, populate with specific tokens
+            },
+            paymaster: PaymasterConfig {
+                enable_paymaster: false,
+                daily_sponsorship_budget: 100_000_000_000_000_000_000, // 100 OMC per day
+                sponsorship_policies: vec![
+                    "token_holder_benefits".to_string(),
+                    "freemium_model".to_string(),
+                ],
+                max_gas_per_tx: 500_000,
+                max_tx_per_user_per_hour: 10,
+            },
         })
     }
 
@@ -258,6 +367,17 @@ impl ValidatorConfig {
         fs::write(keys_dir.join("validator.key"), "placeholder_validator_key")?;
         fs::write(keys_dir.join("network.key"), "placeholder_network_key")?;
         fs::write(keys_dir.join("oon.key"), "placeholder_oon_key")?;
+        
+        // Infrastructure service keys
+        if self.omp.enable_omp {
+            fs::write(keys_dir.join("omp.key"), "placeholder_omp_key")?;
+        }
+        if self.orc20_relayer.enable_relayer {
+            fs::write(keys_dir.join("orc20_relayer.key"), "placeholder_orc20_relayer_key")?;
+        }
+        if self.paymaster.enable_paymaster {
+            fs::write(keys_dir.join("paymaster.key"), "placeholder_paymaster_key")?;
+        }
         
         Ok(())
     }

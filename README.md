@@ -1,53 +1,64 @@
-# Omne Nexus 🔗
+# Omne Validator Node 🏛️
 
-*The definitive validator node for the Omne blockchain network*
+*The complete validator implementation with infrastructure services for the Omne blockchain network*
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/omne-network/omne-nexus)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/omne-network/omne-validator)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange)](https://www.rust-lang.org)
 [![Network](https://img.shields.io/badge/network-Omne-purple)](https://omne.network)
 
 ## Overview
 
-**Omne Nexus** is a high-performance, lightweight validator node designed specifically for the Omne blockchain network. Built from the ground up to maximize validator efficiency while maintaining full network compatibility, Nexus implements the revolutionary PoVERA consensus mechanism and Omne's innovative dual-layer architecture.
+**Omne Validator** is a comprehensive validator node implementation for the Omne blockchain network, featuring both consensus validation and revenue-generating infrastructure services. Built with the revolutionary PoVERA consensus mechanism and supporting Omne's innovative infrastructure services ecosystem.
 
-Unlike traditional full nodes that require extensive resources, Nexus focuses purely on validation, making it accessible to a broader range of participants and strengthening network decentralization.
+This validator node enables operators to earn $2K-40K monthly through infrastructure services while participating in network consensus and security.
 
-### Why "Nexus"?
+### Infrastructure Services Revenue Model
 
-The name **Nexus** represents the critical connection point between validators and the Omne network - a focused, efficient bridge that enables seamless participation in consensus while generating computational revenue through OON integration.
+The validator supports three key infrastructure services that generate substantial revenue:
+
+- **OMP (Omne Memory Protocol)**: Hybrid storage service with 75% cost reduction
+- **Enhanced ORC-20**: Meta-transaction relaying with gas sponsorship  
+- **OEC-4337**: Account abstraction with smart wallet support
 
 ## 🚀 Key Features
 
 ### **Consensus Innovation**
-- **PoVERA Implementation**: Full support for Proof of Value Economic Randomized Agreement
+- **PoVERA Implementation**: Optimized Proof of Virtual Elapsed Rapid Agreement
+- **Dynamic Staking**: 15-28 OGT minimum stake based on network utilization
 - **Dual-Layer Architecture**: 
   - Commerce Layer (3-second blocks) for fast transactions
   - Security Layer (9-minute blocks) for finality and security
-- **Byzantine Fault Tolerance**: 33% malicious validator threshold protection
+- **Event-Driven Processing**: Sub-second consensus latency
+
+### **Infrastructure Services** 
+- **OMP Storage**: Hybrid storage with competitive pricing ($0.01/MB)
+- **ORC-20 Relaying**: Meta-transaction processing with gas sponsorship
+- **ERC-4337 Paymaster**: Account abstraction service for smart wallets
+- **Revenue Tracking**: Real-time earnings monitoring and optimization
 
 ### **Economic Efficiency** 
-- **Low Resource Requirements**: < 2GB RAM, minimal CPU usage
-- **OON Integration**: Optional computational orchestration for additional revenue
-- **Revenue Sharing**: 80% validator rewards, 20% network development
-- **Flexible Staking**: Minimum 100 OGT stake requirement
+- **Dynamic Requirements**: Responsive staking based on network conditions
+- **Revenue Generation**: Multiple income streams from infrastructure services
+- **Cost Optimization**: Efficient resource utilization with profit margins
+- **Performance Incentives**: Higher performance = higher earnings
 
 ### **Developer Experience**
-- **Simple Setup**: One-command initialization and startup
-- **Comprehensive API**: JSON-RPC interface for monitoring and control
-- **Multi-Network**: Seamless mainnet, testnet, and devnet support
-- **Real-time Monitoring**: Built-in health checks and status reporting
+- **Simple Setup**: One-command initialization with infrastructure services
+- **Comprehensive Monitoring**: Real-time metrics for consensus and services
+- **Multi-Network Support**: Mainnet, testnet, and devnet compatibility
+- **Hot Configuration**: Dynamic config updates without restarts
 
 ## 📋 Prerequisites
 
-Before running Omne Nexus, ensure you have:
+Before running Omne Validator, ensure you have:
 
 - **Rust 1.70+** with Cargo ([Install Rust](https://rustup.rs/))
-- **100+ OGT tokens** for validator staking ([Get OGT](https://omne.network/get-ogt))
-- **Stable internet connection** (recommended 25+ Mbps)
+- **15+ OGT tokens** for dynamic validator staking ([Get OGT](https://omne.network/get-ogt))
+- **Stable internet connection** (recommended 100+ Mbps for services)
 - **System requirements**:
-  - 8GB+ RAM (4GB minimum)
-  - 4+ CPU cores
+  - 16GB+ RAM (for infrastructure services)
+  - 8+ CPU cores (for concurrent service processing)
   - 100GB+ available storage
   - Linux/macOS/Windows
 

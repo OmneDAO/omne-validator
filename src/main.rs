@@ -14,6 +14,7 @@ mod p2p;
 mod rpc;
 mod config;
 mod utils;
+mod infrastructure;
 
 use validator::ValidatorNode;
 use config::ValidatorConfig;
@@ -92,6 +93,18 @@ enum Commands {
         /// Enable OON computational services
         #[arg(long)]
         enable_oon: bool,
+        
+        /// Enable OMP media storage services
+        #[arg(long)]
+        enable_omp: bool,
+        
+        /// Enable Enhanced ORC-20 relayer services
+        #[arg(long)]
+        enable_orc20_relayer: bool,
+        
+        /// Enable OEC-4337 paymaster services
+        #[arg(long)]
+        enable_paymaster: bool,
     },
     
     /// Show validator status
