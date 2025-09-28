@@ -7,6 +7,7 @@ use crate::config::ValidatorConfig;
 use crate::consensus::PoVERAValidator;
 use crate::p2p::P2PNetwork;
 use crate::rpc::RpcServer;
+use crate::infrastructure::InfrastructureServices;
 
 use anyhow::{Result, Context};
 use tokio::signal;
@@ -24,6 +25,8 @@ pub struct ValidatorNode {
     p2p_network: Arc<P2PNetwork>,
     /// RPC server
     rpc_server: Arc<RpcServer>,
+    /// Infrastructure services manager
+    infrastructure: Arc<InfrastructureServices>,
     /// Shutdown signal broadcaster
     shutdown_tx: broadcast::Sender<()>,
 }
@@ -87,11 +90,18 @@ impl ValidatorNode {
                 .context("Failed to initialize RPC server")?
         );
 
+        // Initialize infrastructure services
+        let infrastructure = Arc::new(
+            InfrastructureServices::new(&config).await
+                .context("Failed to initialize infrastructure services")?
+        );
+
         Ok(Self {
             config,
             consensus,
             p2p_network,
             rpc_server,
+            infrastructure,
             shutdown_tx,
         })
     }
@@ -131,6 +141,17 @@ impl ValidatorNode {
             tokio::spawn(async move {
                 if let Err(e) = rpc_server.start(shutdown_rx).await {
                     error!("RPC server error: {}", e);
+                }
+            })
+        };
+
+        // Start infrastructure services
+        let infrastructure_handle = {
+            let infrastructure = self.infrastructure.clone();
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            tokio::spawn(async move {
+                if let Err(e) = infrastructure.start(shutdown_rx).await {
+                    error!("Infrastructure services error: {}", e);
                 }
             })
         };
@@ -177,6 +198,11 @@ impl ValidatorNode {
             _ = tokio::time::sleep(shutdown_timeout) => warn!("⚠️  RPC server shutdown timeout"),
         }
 
+        tokio::select! {
+            _ = infrastructure_handle => info!("✅ Infrastructure services shut down"),
+            _ = tokio::time::sleep(shutdown_timeout) => warn!("⚠️  Infrastructure services shutdown timeout"),
+        }
+
         info!("👋 Omne Validator Node shut down successfully");
         Ok(())
     }
@@ -186,11 +212,13 @@ impl ValidatorNode {
         let consensus_status = self.consensus.status().await?;
         let p2p_status = self.p2p_network.status().await?;
         let rpc_status = self.rpc_server.status().await?;
+        let infrastructure_status = self.infrastructure.status().await?;
 
         Ok(ValidatorStatus {
             consensus: consensus_status,
             p2p: p2p_status,
             rpc: rpc_status,
+            infrastructure: infrastructure_status,
             config: self.config.clone(),
         })
     }
@@ -216,5 +244,7 @@ pub struct ValidatorStatus {
     pub consensus: crate::consensus::ConsensusStatus,
     pub p2p: crate::p2p::P2PStatus,
     pub rpc: crate::rpc::RpcStatus,
+    pub infrastructure: crate::infrastructure::InfrastructureStatus,
     pub config: ValidatorConfig,
+}
 }

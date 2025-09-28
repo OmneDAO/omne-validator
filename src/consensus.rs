@@ -43,7 +43,7 @@ pub struct ConsensusState {
     pub attestations_made: u64,
 }
 
-/// Consensus status for external queries
+/// Consensus status for external queries - INFRASTRUCTURE SERVICES ENHANCED
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsensusStatus {
     pub is_validator: bool,
@@ -55,9 +55,24 @@ pub struct ConsensusStatus {
     pub stake: u64,
     pub uptime_percentage: f64,
     pub last_block_time: Option<u64>,
+    pub infrastructure_services: InfrastructureServiceStatus,
 }
 
-/// Performance metrics tracking - BREAKTHROUGH OPTIMIZATION
+/// Infrastructure service status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InfrastructureServiceStatus {
+    pub oon_enabled: bool,
+    pub oon_jobs_completed: u64,
+    pub omp_enabled: bool,
+    pub omp_storage_served_gb: u64,
+    pub orc20_relayer_enabled: bool,
+    pub orc20_txs_relayed: u64,
+    pub paymaster_enabled: bool,
+    pub paymaster_txs_sponsored: u64,
+    pub total_monthly_revenue_estimate: u128,
+}
+
+/// Performance metrics tracking - INFRASTRUCTURE SERVICES INTEGRATION
 #[derive(Debug, Clone)]
 pub struct PerformanceMetrics {
     /// Total uptime in seconds
@@ -70,12 +85,33 @@ pub struct PerformanceMetrics {
     pub blocks_missed: u64,
     /// Average block production time
     pub avg_block_time: Duration,
-    /// Computational jobs completed
-    pub jobs_completed: u64,
-    /// Revenue generated for network
-    pub revenue_generated: u128,
+    /// Computational jobs completed (OON)
+    pub oon_jobs_completed: u64,
+    /// OMP storage requests served
+    pub omp_requests_served: u64,
+    /// ORC-20 transactions relayed
+    pub orc20_txs_relayed: u64,
+    /// Paymaster transactions sponsored
+    pub paymaster_txs_sponsored: u64,
+    /// Total revenue generated for network
+    pub total_revenue_generated: u128,
+    /// Revenue breakdown by service
+    pub revenue_by_service: ServiceRevenueBreakdown,
     /// Start time for performance tracking
     pub start_time: std::time::Instant,
+}
+
+/// Revenue breakdown by infrastructure service
+#[derive(Debug, Clone)]
+pub struct ServiceRevenueBreakdown {
+    /// Revenue from OON computational services
+    pub oon_revenue: u128,
+    /// Revenue from OMP storage services
+    pub omp_revenue: u128,
+    /// Revenue from ORC-20 relayer services
+    pub orc20_relayer_revenue: u128,
+    /// Revenue from OEC-4337 paymaster services
+    pub paymaster_revenue: u128,
 }
 
 /// Network metrics monitoring - BREAKTHROUGH OPTIMIZATION  
@@ -115,8 +151,17 @@ impl PoVERAValidator {
             blocks_proposed: 0,
             blocks_missed: 0,
             avg_block_time: Duration::from_secs(3),
-            jobs_completed: 0,
-            revenue_generated: 0,
+            oon_jobs_completed: 0,
+            omp_requests_served: 0,
+            orc20_txs_relayed: 0,
+            paymaster_txs_sponsored: 0,
+            total_revenue_generated: 0,
+            revenue_by_service: ServiceRevenueBreakdown {
+                oon_revenue: 0,
+                omp_revenue: 0,
+                orc20_relayer_revenue: 0,
+                paymaster_revenue: 0,
+            },
             start_time: std::time::Instant::now(),
         };
 
@@ -210,11 +255,11 @@ impl PoVERAValidator {
         Ok(())
     }
 
-    /// Get current consensus status
-    pub async fn status(&self) -> Result<ConsensusStatus> {
+    /// Get current consensus status - INFRASTRUCTURE SERVICES ENHANCED
+    pub fn get_status(&self) -> ConsensusStatus {
         let uptime_percentage = self.calculate_uptime_percentage();
         
-        Ok(ConsensusStatus {
+        ConsensusStatus {
             is_validator: self.config.validator.is_validator,
             is_active: self.state.is_active,
             commerce_epoch: self.state.commerce_epoch,
@@ -223,11 +268,50 @@ impl PoVERAValidator {
             security_height: self.state.security_height,
             stake: self.state.stake,
             uptime_percentage,
-            last_block_time: Some(std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()),
-        })
+            last_block_time: None, // TODO: Track actual last block time
+            infrastructure_services: InfrastructureServiceStatus {
+                oon_enabled: self.config.oon.enable_oon,
+                oon_jobs_completed: self.performance_metrics.oon_jobs_completed,
+                omp_enabled: self.config.omp.enable_omp,
+                omp_storage_served_gb: self.performance_metrics.omp_requests_served / 1000, // Rough estimate
+                orc20_relayer_enabled: self.config.orc20_relayer.enable_relayer,
+                orc20_txs_relayed: self.performance_metrics.orc20_txs_relayed,
+                paymaster_enabled: self.config.paymaster.enable_paymaster,
+                paymaster_txs_sponsored: self.performance_metrics.paymaster_txs_sponsored,
+                total_monthly_revenue_estimate: self.calculate_monthly_revenue_estimate(),
+            },
+        }
+    }
+
+    /// Calculate estimated monthly revenue from all infrastructure services
+    fn calculate_monthly_revenue_estimate(&self) -> u128 {
+        let mut total = 0u128;
+        
+        // OMP revenue estimate (based on storage served)
+        if self.config.omp.enable_omp {
+            let gb_served = self.performance_metrics.omp_requests_served / 1000;
+            total += gb_served as u128 * self.config.omp.pricing_per_gb_quar;
+        }
+        
+        // ORC-20 relayer revenue estimate (based on transactions relayed)
+        if self.config.orc20_relayer.enable_relayer {
+            let avg_fee_per_tx = 1_000_000_000_000_000u128; // 0.001 OMC per transaction
+            total += self.performance_metrics.orc20_txs_relayed as u128 * avg_fee_per_tx;
+        }
+        
+        // Paymaster revenue estimate (based on sponsorship usage)
+        if self.config.paymaster.enable_paymaster {
+            let avg_sponsorship_fee = 500_000_000_000_000u128; // 0.0005 OMC per sponsored tx
+            total += self.performance_metrics.paymaster_txs_sponsored as u128 * avg_sponsorship_fee;
+        }
+        
+        // OON revenue estimate
+        if self.config.oon.enable_oon {
+            let avg_revenue_per_job = 10_000_000_000_000_000u128; // 0.01 OMC per job
+            total += self.performance_metrics.oon_jobs_completed as u128 * avg_revenue_per_job;
+        }
+        
+        total
     }
 
     /// Calculate uptime percentage - BREAKTHROUGH OPTIMIZATION
